@@ -9,6 +9,14 @@
 <link rel="apple-touch-icon" href="./icon-192.png">
 <title>Piano Note Trainer</title>
 <style>
+.mode-picker{display:flex;align-items:center;gap:12px;margin:16px 0}.mode-picker label{font-size:.72rem;color:var(--muted);font-weight:800;letter-spacing:.08em;white-space:nowrap}.mode-picker select{min-width:0;flex:1;border:1px solid #3d5465;border-radius:11px;background:var(--panel2);color:var(--text);padding:13px 10px;font:inherit;font-weight:700}
+.big-prompt{text-align:center;font-size:2.6rem;font-weight:850;color:var(--orange);padding:6px}
+.staff-interactive svg{touch-action:manipulation;cursor:pointer}
+.staff-interactive{position:relative}
+.target-white{background:#62b6f1!important}.target-black{background:#2287c9!important}
+.staff-interactive svg .hit{fill:transparent;cursor:pointer}
+#identifyKeyboard{pointer-events:none}
+</style><style>
 :root{
   --bg:#101820;--panel:#17232e;--panel2:#1d2c38;--text:#f5f7f8;--muted:#9fb0bd;
   --blue:#2f8fce;--orange:#d99a2b;--good:#55b982;--bad:#df6b68;--line:#dfe6ea;
@@ -41,12 +49,15 @@ button.bad{background:var(--bad);border-color:var(--bad);color:#1b0707}
 <main class="app">
 <header>
   <div><h1>Piano Note Trainer</h1><div class="sub">Treble clef · C4–B5</div></div>
-  <div class="score"><span id="correct">0</span>/<span id="attempts">0</span><small>correct / attempts</small></div>
+  <div class="score" id="keyHeaderScore"><span id="correct">0</span>/<span id="attempts">0</span><small>correct / attempts</small></div>
 </header>
-<div class="tabs">
-<button id="findTab" class="tab active" type="button">Find the Key</button>
-<button id="wordTab" class="tab" type="button">Spell the Word</button>
-</div>
+<div class="mode-picker"><label for="modeSelect">PRACTICE MODE</label><select id="modeSelect">
+<option value="key">Find the Key</option>
+<option value="word">Spell the Word</option>
+<option value="letter">Find the Letter</option>
+<option value="note">Find the Note</option>
+<option value="identify">Identify the Key</option>
+</select></div>
 <div id="findMode">
 <section class="card">
   <div class="staffbox">
@@ -68,7 +79,30 @@ button.bad{background:var(--bad);border-color:var(--bad);color:#1b0707}
 <div class="actions"><button id="wordNext" class="action" type="button">Skip / Next</button><button class="action primary" type="submit">Check</button></div></form>
 <div class="hint">Every note is A–G. Octave doesn't change the letter.</div>
 </section></div>
-<div class="footer">Tap the matching piano key · Middle C is labelled C4</div>
+<div id="letterMode" class="hidden"><section class="card">
+<div class="topline"><strong>Find the Letter</strong><div class="score"><span id="lc">0</span>/<span id="la">0</span><small>correct / attempts</small></div></div>
+<div class="staffbox"><svg id="letterStaff" viewBox="0 0 640 250"></svg></div>
+<div id="letterMsg" class="prompt" aria-live="polite">Which letter is this note?</div>
+<div id="letterChoices" class="answers"></div>
+<div class="actions"><button id="letterNext" class="action primary">Skip / Next</button></div>
+</section></div>
+<div id="noteMode" class="hidden"><section class="card">
+<div class="topline"><strong>Find the Note</strong><div class="score"><span id="nc">0</span>/<span id="na">0</span><small>correct / attempts</small></div></div>
+<div id="notePrompt" class="big-prompt">C</div>
+<div class="staffbox staff-interactive"><svg id="noteStaff" viewBox="0 0 640 250"></svg></div>
+<div id="noteMsg" class="prompt" aria-live="polite">Tap the correct position on the staff</div>
+<div class="hint">Any octave of the displayed letter counts.</div>
+<div class="actions"><button id="noteNext" class="action primary">Skip / Next</button></div>
+</section></div>
+<div id="identifyMode" class="hidden"><section class="card">
+<div class="topline"><strong>Identify the Key</strong><div class="score"><span id="ic">0</span>/<span id="ia">0</span><small>correct / attempts</small></div></div>
+<div class="keyboard-wrap"><div id="identifyKeyboard" class="keyboard"></div></div>
+<div class="hint">The blue key is your target. Select its exact note and octave on the staff.</div>
+<div class="staffbox staff-interactive"><svg id="identifyStaff" viewBox="0 0 640 250"></svg></div>
+<div id="identifyMsg" class="prompt" aria-live="polite">Tap the corresponding staff position</div>
+<div class="actions"><button id="identifyNext" class="action primary">Skip / Next</button></div>
+</section></div>
+<div class="footer" id="footer">Tap the matching piano key · Middle C is labelled C4</div>
 </main>
 
 <script>
@@ -141,7 +175,7 @@ function buildKeyboard(){
 }
 
 // ---------- Spell the Word ----------
-const wordList=["AD","BE","ACE","ADD","AGE","BAD","BAG","BED","BEE","BEG","CAB","DAB","DAD","EBB","EGG","FAD","FED","FEE","GAG","ACED","BABE","BEAD","BEEF","CAGE","CAFE","CEDE","DADA","DEAD","DEAF","DEED","EDGE","FACE","FADE","FEED","ADDED","BADGE","BEADED","BEEFED","CABED","CABBAGE","CEDED","DECAF","FACED","FADED","FEEDBAG","ACCEDE","DECADE","DEFACE","EFFACE","FACADE","BAGGAGE","DEADBEAT"];
+const wordList=["AD","BE","ACE","ADD","AGE","BAD","BAG","BED","BEE","BEG","CAB","DAB","DAD","EBB","EGG","FAD","FED","FEE","GAG","ACED","BABE","BEAD","BEEF","CAGE","CAFE","CEDE","DADA","DEAD","DEAF","DEED","EDGE","FACE","FADE","FEED","ADDED","BADGE","BEADED","BEEFED","CABED","CABBAGE","CEDED","DECAF","FACED","FADED","FEEDBAG","ACCEDE","DECADE","DEFACE","EFFACE","FACADE","BAGGAGE","BAGGAGE"];
 let wordTarget="",wordLast="",wordCorrect=0,wordAttempts=0,wordLocked=false;
 
 function wordStep(letter,i){
@@ -174,19 +208,87 @@ function checkWord(){
 
 // ---------- Tabs and controls ----------
 function showTab(which){
-  const key=which==="key";
-  $("findMode").classList.toggle("hidden",!key);$("wordMode").classList.toggle("hidden",key);
-  $("findTab").classList.toggle("active",key);$("wordTab").classList.toggle("active",!key);
-  if(!key) $("wordInput").focus();
+  ["key","word","letter","note","identify"].forEach(mode=>{
+    const id={key:"findMode",word:"wordMode",letter:"letterMode",note:"noteMode",identify:"identifyMode"}[mode];
+    $(id).classList.toggle("hidden",mode!==which);
+  });
+  $("keyHeaderScore").classList.toggle("hidden",which!=="key");
+  $("footer").textContent=which==="key"?"Tap the matching piano key · Middle C is labelled C4":"Treble clef · C4–B5";
+  if(which==="word") $("wordInput").focus();
 }
-$("findTab").addEventListener("click",()=>showTab("key"));
-$("wordTab").addEventListener("click",()=>showTab("word"));
+$("modeSelect").addEventListener("change",e=>showTab(e.target.value));
 $("next").addEventListener("click",nextKey);
 $("reset").addEventListener("click",()=>{kCorrect=kAttempts=0;$("correct").textContent=$("attempts").textContent="0";nextKey()});
 $("wordNext").addEventListener("click",nextWord);
 $("wordForm").addEventListener("submit",e=>{e.preventDefault();checkWord()});
 
 buildKeyboard();nextKey();nextWord();
+
+// ---------- Three new practice modes ----------
+const letters="ABCDEFG".split("");
+const modeState={letter:{correct:0,attempts:0,last:-1,target:null,locked:false,timer:null},
+ note:{correct:0,attempts:0,last:-1,target:null,locked:false,timer:null},
+ identify:{correct:0,attempts:0,last:-1,target:null,locked:false,timer:null}};
+function selectTarget(mode,pool){
+ const s=modeState[mode];clearTimeout(s.timer);
+ let i;do{i=Math.floor(Math.random()*pool.length)}while(i===s.last&&pool.length>1);
+ s.last=i;s.target=pool[i];s.locked=false;return s.target;
+}
+function mark(mode,ok,msg){
+ const s=modeState[mode];if(s.locked)return;
+ s.attempts++;if(ok){s.correct++;s.locked=true}
+ const prefix={letter:"l",note:"n",identify:"i"}[mode];
+ $(prefix+"a").textContent=s.attempts;$(prefix+"c").textContent=s.correct;
+ $({letter:"letterMsg",note:"noteMsg",identify:"identifyMsg"}[mode]).textContent=msg;
+ if(ok)s.timer=setTimeout(()=>({letter:nextLetter,note:nextNote,identify:nextIdentify}[mode])(),850);
+}
+function nextLetter(){
+ const t=selectTarget("letter",practice);baseStaff($("letterStaff"));drawNote($("letterStaff"),390,t.step);
+ $("letterMsg").textContent="Which letter is this note?";
+ $("letterChoices").replaceChildren();
+ letters.forEach(l=>{const b=document.createElement("button");b.type="button";b.textContent=l;
+ b.addEventListener("click",()=>{if(modeState.letter.locked)return;const ok=l===t.name[0];if(ok)b.classList.add("good");else{b.classList.add("bad");setTimeout(()=>b.classList.remove("bad"),350)}mark("letter",ok,ok?"Correct — "+l:"Try again")});
+ $("letterChoices").append(b)});
+}
+function interactiveStaff(id,mode){
+ const svg=$(id);baseStaff(svg);
+ // Overlay wide, transparent horizontal bands for every diatonic position.
+ for(let step=0;step<=13;step++){
+   const y=yFor(step);
+   const r=svgEl("rect",{x:165,y:y-7.5,width:420,height:15,class:"hit","data-step":step});
+   r.addEventListener("click",()=>{
+     const s=modeState[mode];if(s.locked)return;
+     const chosen=practice[step];
+     const ok=mode==="note"?chosen.name[0]===s.target:chosen.name===s.target.name;
+     if(ok){drawNote(svg,390,step);mark(mode,true,"Correct — "+chosen.name)}
+     else{mark(mode,false,"Not quite — try another position")}
+   });
+   svg.append(r);
+ }
+}
+function nextNote(){
+ const t=selectTarget("note",letters);
+ $("notePrompt").textContent=t;$("noteMsg").textContent="Tap the correct position on the staff";
+ interactiveStaff("noteStaff","note");
+}
+function buildIdentifyKeyboard(){
+ const kb=$("identifyKeyboard");kb.replaceChildren();
+ const whites=[];for(let o=3;o<=5;o++)for(const l of "CDEFGAB")whites.push(l+o);
+ whites.forEach((n,i)=>{const b=document.createElement("div");b.className="key-white"+(n==="C4"?" middle-c":"");b.style.left=i*30+"px";b.dataset.note=n;kb.append(b)});
+ const black={C:"C#",D:"D#",F:"F#",G:"G#",A:"A#"};
+ whites.forEach((n,i)=>{if(!black[n[0]]||i===whites.length-1)return;const b=document.createElement("div");b.className="key-black";b.style.left=(i*30+20)+"px";b.dataset.note=black[n[0]]+n.slice(1);kb.append(b)});
+}
+function nextIdentify(){
+ const t=selectTarget("identify",practice);
+ $("identifyMsg").textContent="Tap the corresponding staff position";
+ $("identifyKeyboard").querySelectorAll("[data-note]").forEach(el=>el.classList.toggle(el.classList.contains("key-black")?"target-black":"target-white",el.dataset.note===t.name));
+ interactiveStaff("identifyStaff","identify");
+}
+$("letterNext").addEventListener("click",nextLetter);
+$("noteNext").addEventListener("click",nextNote);
+$("identifyNext").addEventListener("click",nextIdentify);
+buildIdentifyKeyboard();nextLetter();nextNote();nextIdentify();
+
 })();
 </script>
 <script>if ("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.error));</script>
