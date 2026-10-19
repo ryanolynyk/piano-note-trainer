@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101820">
+<title>Piano Note Trainer</title>
+<style>
+:root{
+  --bg:#101820;--panel:#17232e;--panel2:#1d2c38;--text:#f5f7f8;--muted:#9fb0bd;
+  --blue:#2f8fce;--orange:#d99a2b;--good:#55b982;--bad:#df6b68;--line:#dfe6ea;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{min-height:100vh}
+.app{width:min(100%,720px);margin:auto;padding:18px 14px 30px}
+header{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:18px}
+h1{font-size:1.55rem;margin:0}.sub{color:var(--muted);font-size:.84rem;margin-top:3px}
+.score{text-align:right;font-weight:700}.score small{display:block;color:var(--muted);font-weight:500}
+.card{background:var(--panel);border:1px solid #263746;border-radius:16px;padding:14px;margin-bottom:14px}
+.staffbox{background:#f8fafb;border-radius:12px;padding:8px}
+svg{display:block;width:100%;height:auto}
+.prompt{text-align:center;color:var(--muted);font-weight:650;margin:12px 0 10px;min-height:24px}
+.answers{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+button{appearance:none;border:1px solid #344958;background:var(--panel2);color:var(--text);border-radius:11px;min-height:54px;font-size:1.1rem;font-weight:800;touch-action:manipulation}
+button:active{transform:translateY(1px)}
+button.good{background:var(--good);border-color:var(--good);color:#07130d}
+button.bad{background:var(--bad);border-color:var(--bad);color:#1b0707}
+.keyboard-wrap{overflow-x:auto;padding:2px 0 8px}.keyboard{position:relative;width:630px;height:175px;background:#fff;border:1px solid #52616c;border-radius:10px;overflow:hidden}.key-white,.key-black{position:absolute;top:0;padding:0;border-radius:0;touch-action:manipulation}.key-white{height:175px;width:30px;background:#fff;border:0;border-right:1px solid #7a858c;z-index:1;min-height:0}.key-black{height:105px;width:19px;background:#171717;border:1px solid #000;border-radius:0 0 4px 4px;z-index:2;min-height:0}.key-white.good,.key-black.good{background:var(--good)}.key-white.bad,.key-black.bad{background:var(--bad)}.middle-c::after{content:"C4";position:absolute;bottom:7px;left:0;right:0;text-align:center;color:#3c4850;font-size:10px;font-weight:800}.actions{display:flex;gap:8px;margin-top:12px}
+.actions button{font-size:.92rem;min-height:46px;flex:1}
+#next{background:var(--blue);border-color:var(--blue)}
+#reset{color:var(--orange)}
+.footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:12px}
+@media(max-width:390px){.app{padding-left:10px;padding-right:10px}.answers{gap:4px}button{min-height:50px;font-size:1rem}.card{padding:10px}}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0}.tab{min-height:48px;border:1px solid #344958;background:var(--panel2);color:var(--muted);border-radius:11px;font-weight:750;font-size:.92rem}.tab.active{background:var(--blue);border-color:var(--blue);color:white}.hidden{display:none!important}.word-input{width:100%;font:inherit;font-size:1.25rem;font-weight:800;text-transform:uppercase;text-align:center;letter-spacing:.12em;padding:12px;border-radius:11px;border:1px solid #405563;background:#0f1921;color:var(--text);outline:none}.word-input:focus{border-color:var(--blue)}.hint{font-size:.78rem;text-align:center;color:var(--muted);margin-top:8px}.topline{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.action{font-size:.92rem;min-height:46px;flex:1;border:1px solid #344958;background:var(--panel2);border-radius:11px;font-weight:700}.primary{background:var(--blue);border-color:var(--blue)}</style>
+</head>
+<body>
+<main class="app">
+<header>
+  <div><h1>Piano Note Trainer</h1><div class="sub">Treble clef · C4–B5</div></div>
+  <div class="score"><span id="correct">0</span>/<span id="attempts">0</span><small>correct / attempts</small></div>
+</header>
+<div class="tabs">
+<button id="findTab" class="tab active" type="button">Find the Key</button>
+<button id="wordTab" class="tab" type="button">Spell the Word</button>
+</div>
+<div id="findMode">
+<section class="card">
+  <div class="staffbox">
+    <svg id="staff" viewBox="0 0 640 250" role="img" aria-label="Treble staff with a note to identify"></svg>
+  </div>
+  <div id="feedback" class="prompt" aria-live="polite">Which note is this?</div>
+  <div class="keyboard-wrap"><div id="keyboard" class="keyboard" aria-label="Piano keyboard"></div></div>
+  <div class="actions">
+    <button id="reset" type="button">Reset score</button>
+    <button id="next" type="button">Skip / Next</button>
+  </div>
+</section></div>
+<div id="wordMode" class="hidden">
+<section class="card">
+<div class="topline"><div><strong>Read the Notes</strong><div class="sub">What word do they spell?</div></div><div class="score"><span id="wc">0</span>/<span id="wa">0</span><small>words correct</small></div></div>
+<div class="staffbox"><svg id="wordStaff" viewBox="0 0 760 250"></svg></div>
+<div id="wordMsg" class="prompt">Type the word shown on the staff</div>
+<form id="wordForm"><input id="wordInput" class="word-input" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="7" placeholder="TYPE WORD">
+<div class="actions"><button id="wordNext" class="action" type="button">Skip / Next</button><button class="action primary" type="submit">Check</button></div></form>
+<div class="hint">Every note is A–G. Octave doesn't change the letter.</div>
+</section></div>
+<div class="footer">Tap the matching piano key · Middle C is labelled C4</div>
+</main>
+
+<script>
+(()=>{
+const NS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+const svgEl=(tag,a={})=>{const e=document.createElementNS(NS,tag);Object.entries(a).forEach(([k,v])=>e.setAttribute(k,v));return e};
+
+// ---------- Shared staff drawing ----------
+function yFor(step){return 190-(step-2)*15}
+function baseStaff(svg,x2=590){
+  svg.replaceChildren();
+  [70,100,130,160,190].forEach(y=>svg.append(svgEl("line",{x1:55,y1:y,x2:x2,y2:y,stroke:"#20272c","stroke-width":3})));
+  const clef=svgEl("text",{x:68,y:194,"font-size":150,fill:"#20272c","font-family":"serif"});
+  clef.textContent="𝄞"; svg.append(clef);
+}
+function drawNote(svg,x,step){
+  const y=yFor(step);
+  if(step===0) svg.append(svgEl("line",{x1:x-27,y1:220,x2:x+27,y2:220,stroke:"#20272c","stroke-width":3}));
+  if(step>=12) svg.append(svgEl("line",{x1:x-27,y1:40,x2:x+27,y2:40,stroke:"#20272c","stroke-width":3}));
+  const head=svgEl("ellipse",{cx:x,cy:y,rx:17,ry:11,fill:"#20272c",transform:`rotate(-18 ${x} ${y})`});
+  svg.append(head);
+  const up=y>=130;
+  svg.append(svgEl("line",up
+    ? {x1:x+15,y1:y,x2:x+15,y2:y-60,stroke:"#20272c","stroke-width":4}
+    : {x1:x-15,y1:y,x2:x-15,y2:y+60,stroke:"#20272c","stroke-width":4}));
+}
+
+// ---------- Find the Key ----------
+const practice=[
+ ["C4",0],["D4",1],["E4",2],["F4",3],["G4",4],["A4",5],["B4",6],
+ ["C5",7],["D5",8],["E5",9],["F5",10],["G5",11],["A5",12],["B5",13]
+].map(x=>({name:x[0],step:x[1]}));
+let kTarget=null,kLast=-1,kCorrect=0,kAttempts=0,kLocked=false,kTimer=null;
+
+function drawKey(){baseStaff($("staff"));drawNote($("staff"),390,kTarget.step)}
+function clearKeys(){document.querySelectorAll(".key-white,.key-black").forEach(b=>b.classList.remove("good","bad"))}
+function nextKey(){
+  if(kTimer) clearTimeout(kTimer);
+  let i; do{i=Math.floor(Math.random()*practice.length)}while(i===kLast);
+  kLast=i;kTarget=practice[i];kLocked=false;clearKeys();
+  $("feedback").textContent="Find this note on the keyboard";drawKey();
+}
+function keyAnswer(name,b){
+  if(kLocked)return;
+  kAttempts++;$("attempts").textContent=kAttempts;
+  if(name===kTarget.name){
+    kCorrect++;$("correct").textContent=kCorrect;b.classList.add("good");
+    $("feedback").textContent="Correct — "+name;kLocked=true;kTimer=setTimeout(nextKey,700);
+  } else {
+    b.classList.add("bad");$("feedback").textContent="Try again";
+    setTimeout(()=>b.classList.remove("bad"),350);
+  }
+}
+function buildKeyboard(){
+  const keyboard=$("keyboard"),whites=[];
+  for(let o=3;o<=5;o++) for(const l of "CDEFGAB") whites.push(l+o);
+  whites.forEach((n,i)=>{
+    const b=document.createElement("button");b.type="button";
+    b.className="key-white"+(n==="C4"?" middle-c":"");b.style.left=(i*30)+"px";
+    b.setAttribute("aria-label",n);b.addEventListener("click",()=>keyAnswer(n,b));keyboard.append(b);
+  });
+  const black={C:"C#",D:"D#",F:"F#",G:"G#",A:"A#"};
+  whites.forEach((n,i)=>{
+    if(!black[n[0]]||i===whites.length-1)return;
+    const b=document.createElement("button");b.type="button";b.className="key-black";
+    b.style.left=(i*30+20)+"px";const name=black[n[0]]+n.slice(1);
+    b.setAttribute("aria-label",name);b.addEventListener("click",()=>keyAnswer(name,b));keyboard.append(b);
+  });
+}
+
+// ---------- Spell the Word ----------
+const wordList=["AD","BE","ACE","ADD","AGE","BAD","BAG","BED","BEE","BEG","CAB","DAB","DAD","EBB","EGG","FAD","FED","FEE","GAG","ACED","BABE","BEAD","BEEF","CAGE","CAFE","CEDE","DADA","DEAD","DEAF","DEED","EDGE","FACE","FADE","FEED","ADDED","BADGE","BEADED","BEEFED","CABED","CABBAGE","CEDED","DECAF","FACED","FADED","FEEDBAG","ACCEDE","DECADE","DEFACE","EFFACE","FACADE","BAGGAGE","DEADBEAT"];
+let wordTarget="",wordLast="",wordCorrect=0,wordAttempts=0,wordLocked=false;
+
+function wordStep(letter,i){
+  const opts={A:[5,12],B:[6,13],C:[7],D:[8],E:[2,9],F:[3,10],G:[4,11]};
+  const a=opts[letter];return a[i%a.length];
+}
+function drawWord(){
+  const svg=$("wordStaff");baseStaff(svg,710);
+  const chars=[...wordTarget],start=215,end=670,gap=chars.length>1?(end-start)/(chars.length-1):0;
+  chars.forEach((letter,i)=>drawNote(svg,chars.length===1?440:start+i*gap,wordStep(letter,i)));
+}
+function nextWord(){
+  let w;do{w=wordList[Math.floor(Math.random()*wordList.length)]}while(w===wordLast);
+  wordLast=wordTarget=w;wordLocked=false;$("wordInput").value="";
+  $("wordMsg").textContent="Type the word shown on the staff";drawWord();
+}
+function checkWord(){
+  if(wordLocked)return;
+  const answer=$("wordInput").value.trim().toUpperCase();
+  if(!answer){$("wordMsg").textContent="Enter the word first";return}
+  wordAttempts++;$("wa").textContent=wordAttempts;
+  if(answer===wordTarget){
+    wordCorrect++;$("wc").textContent=wordCorrect;wordLocked=true;
+    $("wordMsg").textContent="Correct — "+wordTarget;
+    setTimeout(nextWord,750);
+  } else {
+    $("wordMsg").textContent="Try again";$("wordInput").select();
+  }
+}
+
+// ---------- Tabs and controls ----------
+function showTab(which){
+  const key=which==="key";
+  $("findMode").classList.toggle("hidden",!key);$("wordMode").classList.toggle("hidden",key);
+  $("findTab").classList.toggle("active",key);$("wordTab").classList.toggle("active",!key);
+  if(!key) $("wordInput").focus();
+}
+$("findTab").addEventListener("click",()=>showTab("key"));
+$("wordTab").addEventListener("click",()=>showTab("word"));
+$("next").addEventListener("click",nextKey);
+$("reset").addEventListener("click",()=>{kCorrect=kAttempts=0;$("correct").textContent=$("attempts").textContent="0";nextKey()});
+$("wordNext").addEventListener("click",nextWord);
+$("wordForm").addEventListener("submit",e=>{e.preventDefault();checkWord()});
+
+buildKeyboard();nextKey();nextWord();
+})();
+</script>
+</body>
+</html>
